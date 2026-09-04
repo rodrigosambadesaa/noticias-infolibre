@@ -9,3 +9,5 @@ Independent Android RSS reader for infoLibre.
 This is not an official infoLibre application.
 
 Connectivity implementation source: https://gist.github.com/rodrigosambadesaa/729cca29a031fef4e2f15751863b655f
+
+Current release: 1.1.1
