@@ -1,6 +1,7 @@
 package com.example.muyinteresante;
 
 import android.content.Intent;
+import com.example.muyinteresante.util.ConnectivityAndInternetAccess;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -107,11 +108,20 @@ public class DetalleActivity extends AppCompatActivity {
         });
 
         if (articleUrl != null && !articleUrl.isEmpty()) {
-            webView.loadUrl(articleUrl);
+            cargarArticuloSiHayRed();
         } else {
             Toast.makeText(this, "URL no válida", Toast.LENGTH_SHORT).show();
             finish();
         }
+    }
+
+    private void cargarArticuloSiHayRed() {
+        if (!ConnectivityAndInternetAccess.isConnected(this)) {
+            progressBar.setVisibility(View.GONE);
+            Toast.makeText(this, "Sin conexión. No se puede cargar el artículo.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        webView.loadUrl(articleUrl);
     }
 
     @Override
@@ -129,7 +139,7 @@ public class DetalleActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.menu_actualizar) {
             if (webView != null) {
-                webView.reload();
+                cargarArticuloSiHayRed();
             }
             return true;
         } else if (id == R.id.action_abrir_navegador || id == R.id.action_test_conectividad) {

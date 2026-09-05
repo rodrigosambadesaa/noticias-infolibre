@@ -1,6 +1,10 @@
 package com.example.muyinteresanteNoTocar;
 
 import java.io.InputStream;
+import java.net.ConnectException;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -16,15 +20,26 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.example.muyinteresante.util.ConnectivityAndInternetAccess;
+import com.example.muyinteresante.util.RemoteOperationPolicy;
 
 /* Parsea un canal RSS y devuelve sus items en un ArrayList */
 
 public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<NoticiaRSS>>{
 
+	public enum FailureType { NONE, NO_NETWORK, HTTP_ERROR, AMBIGUOUS_CONNECTIVITY, OTHER }
+
+	public interface ErrorCallback {
+		void onError(FailureType type, int httpStatus, Exception exception);
+	}
+
 	private Context contexto=null;
 	private iNoticiaRSS objetoReceptor=null;
 	private ProgressDialog pd=null;
 	private boolean mostrarProgreso=true;
+	private ErrorCallback errorCallback;
+	private FailureType failureType = FailureType.NONE;
+	private int httpStatus = -1;
+	private Exception failureException;
 	
 	private static final String MENSAJE_PD="Descargando noticias...";
 	
@@ -41,6 +56,12 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		this.contexto = contexto;
 		this.objetoReceptor = objetoReceptor;
 		this.mostrarProgreso = mostrarProgreso;
+	}
+
+	public DescargaNoticiasRSS(Context contexto, iNoticiaRSS objetoReceptor,
+			boolean mostrarProgreso, ErrorCallback errorCallback){
+		this(contexto, objetoReceptor, mostrarProgreso);
+		this.errorCallback = errorCallback;
 	}
 
 
@@ -87,8 +108,10 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		InputStream entrada = null;
 		
 		try{
-			if (contexto != null && !ConnectivityAndInternetAccess.isConnectedOrConnecting(contexto)) {
-				Log.w("DescargaNoticiasRSS", "Descarga cancelada: Dispositivo sin conexión según ConnectivityAndInternetAccess.");
+			if (contexto != null && !RemoteOperationPolicy.canStartRemoteRequest(
+					ConnectivityAndInternetAccess.isConnected(contexto))) {
+				failureType = FailureType.NO_NETWORK;
+				Log.w("DescargaNoticiasRSS", "Descarga omitida: no hay una red utilizable.");
 				return null;
 			}
 
@@ -99,7 +122,7 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 			
 			 // Creamos objeto URL a partir de la direccion web para conectarnos con el servidor
 			URL url = new URL(params[0]);
-			URLConnection conex = url.openConnection(); // Abrimos la conexion
+			URLConnection conex = url.openConnection(); // La petición real es la prueba principal
 			conex.setConnectTimeout(10000);
 			conex.setReadTimeout(10000);
 			conex.setUseCaches(false); // Evitamos la cache de datos.
@@ -107,6 +130,13 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 			conex.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) noticias-infolibre/1.0");
 			 
 			 // Abrimos el fichero para su lectura/descarga
+			if (conex instanceof HttpURLConnection) {
+				httpStatus = ((HttpURLConnection) conex).getResponseCode();
+				if (httpStatus < 200 || httpStatus >= 300) {
+					failureType = FailureType.HTTP_ERROR;
+					return null;
+				}
+			}
 			entrada = conex.getInputStream();	
 
 			Document arbolXML =db.parse(entrada);
@@ -131,7 +161,10 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 			return noticias;
 		}
 		catch (Exception e){
-			e.printStackTrace();
+			failureException = e;
+			failureType = isConnectivityException(e)
+					? FailureType.AMBIGUOUS_CONNECTIVITY : FailureType.OTHER;
+			Log.w("DescargaNoticiasRSS", "Error descargando RSS (" + failureType + ")", e);
 			return null;
 		}
 		finally {
@@ -153,7 +186,25 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		ConnectivityAndInternetAccess.endConnectionAttempt();
 		
 		if (pd!=null) pd.dismiss();
+		if (result == null && errorCallback != null) {
+			errorCallback.onError(failureType, httpStatus, failureException);
+		}
 		if (objetoReceptor!=null ) objetoReceptor.onRecibeNoticiasRSS(result);
+	}
+
+	static boolean isConnectivityException(Throwable error) {
+		Throwable current = error;
+		while (current != null) {
+			if (current instanceof UnknownHostException
+					|| current instanceof ConnectException
+					|| current instanceof SocketTimeoutException
+					|| current instanceof javax.net.ssl.SSLException
+					|| current instanceof java.io.InterruptedIOException) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 

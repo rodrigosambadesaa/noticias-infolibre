@@ -7,6 +7,7 @@
  */
 package com.example.muyinteresante.util;
 
+import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -758,7 +759,7 @@ public final class ConnectivityAndInternetAccess {
                 ConnectionAttempt attempt = CONNECTION_ATTEMPT_QUEUE.removeFirst();
                 if (!attempt.closed) {
                     attempt.closed = true;
-                    CONNECTION_ATTEMPTS.updateAndGet(value -> value > 0 ? value - 1 : 0);
+                    decrementConnectionAttempts();
                     return;
                 }
             }
@@ -1963,6 +1964,7 @@ public final class ConnectivityAndInternetAccess {
         return connectivityManager;
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private static boolean isUsable(NetworkCapabilities capabilities) {
         if (capabilities == null
                 || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
@@ -2030,6 +2032,7 @@ public final class ConnectivityAndInternetAccess {
         return false;
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private static boolean isFast(NetworkCapabilities capabilities) {
         return isUsable(capabilities)
                 && capabilities.getLinkDownstreamBandwidthKbps() >= MINIMUM_FAST_KBPS
@@ -2384,10 +2387,20 @@ public final class ConnectivityAndInternetAccess {
 
             attempt.closed = true;
             CONNECTION_ATTEMPT_QUEUE.remove(attempt);
-            CONNECTION_ATTEMPTS.updateAndGet(value -> value > 0 ? value - 1 : 0);
+            decrementConnectionAttempts();
             CONNECTION_ATTEMPT_STALLED.set(true);
             return true;
         }
+    }
+
+    private static void decrementConnectionAttempts() {
+        int current;
+        do {
+            current = CONNECTION_ATTEMPTS.get();
+            if (current <= 0) {
+                return;
+            }
+        } while (!CONNECTION_ATTEMPTS.compareAndSet(current, current - 1));
     }
 
     private static void expireTimedOutConnectionAttempts() {
@@ -2409,7 +2422,7 @@ public final class ConnectivityAndInternetAccess {
 
                 attempt.closed = true;
                 CONNECTION_ATTEMPT_QUEUE.removeFirst();
-                CONNECTION_ATTEMPTS.updateAndGet(value -> value > 0 ? value - 1 : 0);
+                decrementConnectionAttempts();
                 CONNECTION_ATTEMPT_STALLED.set(true);
             }
         }

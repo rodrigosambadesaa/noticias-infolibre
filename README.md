@@ -10,4 +10,9 @@ This is not an official infoLibre application.
 
 Connectivity implementation source: https://gist.github.com/rodrigosambadesaa/729cca29a031fef4e2f15751863b655f
 
-Current release: 1.1.1
+Current release: 1.1.2
+
+Network policy: use Android's passive `NetworkCapabilities` state as a cheap guard, let
+the real RSS/article request be authoritative, and run the Gist's active diagnostic only
+after an ambiguous connectivity failure. Offline, refresh, retry and pagination paths
+reuse the news cache without redundant probes.
