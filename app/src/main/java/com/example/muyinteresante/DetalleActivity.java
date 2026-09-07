@@ -10,7 +10,6 @@ import android.support.v4.view.ViewCompat;
 import android.support.v4.view.WindowInsetsCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -64,11 +63,7 @@ public class DetalleActivity extends AppCompatActivity {
                     int right = insets.getSystemWindowInsetRight();
 
                     if (toolbar != null && top > 0) {
-                        TypedValue actionBarSize = new TypedValue();
-                        getTheme().resolveAttribute(android.support.v7.appcompat.R.attr.actionBarSize,
-                                actionBarSize, true);
-                        int baseToolbarHeight = TypedValue.complexToDimensionPixelSize(
-                                actionBarSize.data, getResources().getDisplayMetrics());
+                        int baseToolbarHeight = getResources().getDimensionPixelSize(R.dimen.top_bar_height);
                         ViewGroup.LayoutParams toolbarParams = toolbar.getLayoutParams();
                         toolbarParams.height = baseToolbarHeight + top;
                         toolbar.setLayoutParams(toolbarParams);
