@@ -1,6 +1,7 @@
 package com.example.muyinteresante;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.support.v4.view.OnApplyWindowInsetsListener;
 import android.support.v4.view.ViewCompat;
@@ -169,6 +170,13 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
 
         // Cargar noticias iniciales (intenta descargar o usa caché offline)
         cargarNoticiasIniciales();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // La actividad no se recrea al rotar: se conserva la lista y el scroll.
+        Log.d(TAG, "Cambio de orientación: se conserva la lista y la posición de scroll");
     }
 
     @Override
