@@ -10,7 +10,7 @@ This is not an official infoLibre application.
 
 Connectivity implementation source: https://gist.github.com/rodrigosambadesaa/729cca29a031fef4e2f15751863b655f
 
-Current release: 1.1.5
+Current release: 1.1.6
 
 Network policy: use Android's passive `NetworkCapabilities` state as a cheap guard, let
 the real RSS/article request be authoritative, and run the Gist's active diagnostic only
@@ -22,3 +22,5 @@ The top bars account for status-bar insets and keep the title separated from the
 network status indicator on narrow screens.
 The blue top bar uses a taller 72dp base height so the upper elements have
 adequate visual spacing.
+The header title uses high-contrast white text with a medium weight and subtle
+shadow for clearer separation from the blue background.

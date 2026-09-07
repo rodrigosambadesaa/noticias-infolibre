@@ -4,6 +4,8 @@
     <color name="colorPrimaryDark">#020617</color>
     <color name="colorAccent">#E11D48</color>
     <color name="brandRed">#E11D48</color>
+    <color name="header_title">#FFFFFF</color>
+    <color name="header_title_shadow">#66000000</color>
 
     <color name="bg_app">#F8FAFC</color>
     <color name="card_bg">#FFFFFF</color>
