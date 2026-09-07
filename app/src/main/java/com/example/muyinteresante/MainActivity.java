@@ -14,9 +14,11 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -102,6 +104,14 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
                     int right = insets.getSystemWindowInsetRight();
 
                     if (toolbar != null && top > 0) {
+                        TypedValue actionBarSize = new TypedValue();
+                        getTheme().resolveAttribute(android.support.v7.appcompat.R.attr.actionBarSize,
+                                actionBarSize, true);
+                        int baseToolbarHeight = TypedValue.complexToDimensionPixelSize(
+                                actionBarSize.data, getResources().getDisplayMetrics());
+                        ViewGroup.LayoutParams toolbarParams = toolbar.getLayoutParams();
+                        toolbarParams.height = baseToolbarHeight + top;
+                        toolbar.setLayoutParams(toolbarParams);
                         toolbar.setPadding(left, top, right, 0);
                     }
                     if (rvNoticias != null && bottom > 0) {
