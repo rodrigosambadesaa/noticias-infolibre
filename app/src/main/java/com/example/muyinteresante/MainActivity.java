@@ -210,7 +210,7 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
     private void actualizarInterfazEstadoRed(ConnectivityAndInternetAccess.NetworkState state) {
         // El observador entrega un único snapshot coherente. No mezclarlo con
         // señales transitorias (como intentos pendientes) para pintar la cabecera.
-        boolean isConnected = state != null
+        boolean transportConnected = state != null
                 ? state.isConnected()
                 : ConnectivityAndInternetAccess.isConnected(this);
         boolean isWifi = ConnectivityAndInternetAccess.isConnectedWifi(this);
@@ -223,12 +223,25 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
                 : ConnectivityAndInternetAccess.isCaptivePortalDetected(this);
         boolean isValidated = state != null && state.isInternetValidated();
         boolean validationSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
+        boolean isConnected = transportConnected
+                && (!validationSupported || isValidated || isVpn)
+                && ConnectivityAndInternetAccess.isConnected(this);
 
-        Log.d(TAG, "Chequeo de red: Connected=" + isConnected +
+        Log.d(TAG, "Chequeo de red: Transport=" + transportConnected +
+                ", InternetReady=" + isConnected +
                 ", Wifi=" + isWifi + ", Mobile=" + isMobile +
                 ", VPN=" + isVpn + ", Airplane=" + isAirplane + ", Fast=" + isFast);
 
-        if (!isConnected) {
+        if (isCaptive) {
+            // Captive Portal
+            viewNetworkDot.setBackgroundResource(R.color.status_warning);
+            tvNetworkStatusText.setText("Portal Cautivo");
+            tvNetworkStatusText.setTextColor(getResources().getColor(R.color.status_warning));
+
+            bannerNetworkNotice.setVisibility(View.VISIBLE);
+            bannerNetworkNotice.setBackgroundResource(R.color.status_warning_bg);
+            tvBannerText.setText("Se requiere inicio de sesión en red (Portal Cautivo detectado).");
+        } else if (!transportConnected) {
             // Disconnected / Offline
             viewNetworkDot.setBackgroundResource(R.color.status_offline);
             tvNetworkStatusText.setText(isAirplane ? "Modo Avión" : "Sin red");
@@ -239,24 +252,15 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
             tvBannerText.setText(isAirplane ?
                     "Modo Avión activado. Mostrando noticias guardadas en caché." :
                     "Dispositivo sin conexión a internet. Mostrando noticias guardadas en caché.");
-        } else if (isCaptive) {
-            // Captive Portal
-            viewNetworkDot.setBackgroundResource(R.color.status_warning);
-            tvNetworkStatusText.setText("Portal Cautivo");
-            tvNetworkStatusText.setTextColor(getResources().getColor(R.color.status_warning));
-
-            bannerNetworkNotice.setVisibility(View.VISIBLE);
-            bannerNetworkNotice.setBackgroundResource(R.color.status_warning_bg);
-            tvBannerText.setText("Se requiere inicio de sesión en red (Portal Cautivo detectado).");
-        } else if (validationSupported && !isValidated) {
+        } else if (!isConnected) {
             // Connected without validated internet
             viewNetworkDot.setBackgroundResource(R.color.status_warning);
-            tvNetworkStatusText.setText("Conectando...");
+            tvNetworkStatusText.setText("Sin Internet");
             tvNetworkStatusText.setTextColor(getResources().getColor(R.color.status_warning));
 
             bannerNetworkNotice.setVisibility(View.VISIBLE);
             bannerNetworkNotice.setBackgroundResource(R.color.status_warning_bg);
-            tvBannerText.setText("Conectado a la interfaz de red pero sin acceso verificado a internet.");
+            tvBannerText.setText("Hay una red disponible, pero Internet no está verificado.");
         } else {
             // Fully connected & validated
             viewNetworkDot.setBackgroundResource(R.color.status_online);
@@ -296,7 +300,7 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
             return;
         }
         if (!RemoteOperationPolicy.canStartRemoteRequest(
-                ConnectivityAndInternetAccess.isConnected(this))) {
+                hayInternetUtilizable())) {
             usarNoticiasOffline();
             return;
         }
@@ -378,6 +382,13 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         }
     }
 
+    private boolean hayInternetUtilizable() {
+        // Una VPN como AdGuard puede transportar Internet correctamente sin
+        // aparecer como VALIDATED en NetworkCapabilities. isConnected() es el
+        // guard barato; la petición RSS real sigue siendo la prueba definitiva.
+        return ConnectivityAndInternetAccess.isConnected(this);
+    }
+
     private void clasificarFalloRssConDiagnostico() {
         ConnectivityAndInternetAccess connectivity =
                 new ConnectivityAndInternetAccess.Builder().build();
@@ -414,15 +425,6 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
                 .setPositiveButton("Cerrar", null)
                 .show();
 
-        // Chequeos estáticos rápidos de ConnectivityAndInternetAccess
-        boolean isConnectedOrConnecting = ConnectivityAndInternetAccess.isConnectedOrConnecting(this);
-        boolean isConnected = ConnectivityAndInternetAccess.isConnected(this);
-        boolean isWifi = ConnectivityAndInternetAccess.isConnectedWifi(this);
-        boolean isMobile = ConnectivityAndInternetAccess.isConnectedMobile(this);
-        boolean isFast = ConnectivityAndInternetAccess.isConnectedFast(this);
-        boolean isVpn = ConnectivityAndInternetAccess.vpnActive(this);
-        boolean isAirplane = ConnectivityAndInternetAccess.isAirplaneModeOn(this);
-
         // Sondeo activo DNS/HTTP
         ConnectivityAndInternetAccess.checkInternetAsyncDefault(this, new ConnectivityAndInternetAccess.InternetCallback() {
             @Override
@@ -431,10 +433,16 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
                     boolean reachable = result != null && result.isReachable();
                     String reachedHost = result != null ? result.getReachedHost() : "Ninguno";
                     long time = result != null ? result.getElapsedMilliseconds() : 0;
+                    boolean transportConnected = ConnectivityAndInternetAccess.isConnected(MainActivity.this);
+                    boolean isVpn = ConnectivityAndInternetAccess.vpnActive(MainActivity.this);
+                    boolean isWifi = ConnectivityAndInternetAccess.isConnectedWifi(MainActivity.this);
+                    boolean isMobile = ConnectivityAndInternetAccess.isConnectedMobile(MainActivity.this);
+                    boolean isFast = ConnectivityAndInternetAccess.isConnectedFast(MainActivity.this);
+                    boolean isAirplane = ConnectivityAndInternetAccess.isAirplaneModeOn(MainActivity.this);
 
                     StringBuilder sb = new StringBuilder();
                     sb.append("📡 ESTADO DE INTERFAZ DE RED:\n");
-                    sb.append("• Estado general: ").append(isConnected ? "Conectado" : (isConnectedOrConnecting ? "Conectando..." : "Desconectado")).append("\n");
+                    sb.append("• Estado general: ").append(reachable ? "Conectado" : (transportConnected ? "Red sin Internet" : "Desconectado")).append("\n");
                     sb.append("• Tipo de red: ").append(isWifi ? "Wi-Fi" : (isMobile ? "Móvil / Celular" : "Otra / Ninguna")).append("\n");
                     sb.append("• Velocidad estimada: ").append(isFast ? "Rápida (High Speed)" : "Lenta / Desconocida").append("\n");
                     sb.append("• Red VPN Activa: ").append(isVpn ? "SÍ" : "No").append("\n");
