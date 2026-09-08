@@ -36,6 +36,7 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 	private iNoticiaRSS objetoReceptor=null;
 	private ProgressDialog pd=null;
 	private boolean mostrarProgreso=true;
+	private boolean connectionAttemptStarted=false;
 	private ErrorCallback errorCallback;
 	private FailureType failureType = FailureType.NONE;
 	private int httpStatus = -1;
@@ -70,8 +71,19 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		super.onPreExecute();
 		
 		if (contexto != null) {
+			// El guard debe ejecutarse antes de crear cualquier indicador de progreso.
+			// Así una operación iniciada durante una pérdida de red no muestra una
+			// descarga que nunca llegará a ejecutarse.
+			if (!RemoteOperationPolicy.canStartRemoteRequest(
+					ConnectivityAndInternetAccess.isConnected(contexto))) {
+				failureType = FailureType.NO_NETWORK;
+				Log.w("DescargaNoticiasRSS", "Descarga omitida antes del progreso: no hay red utilizable.");
+				return;
+			}
+
 			// Registramos inicio de intento de conexión para seguimiento de estado
 			ConnectivityAndInternetAccess.beginConnectionAttempt(contexto);
+			connectionAttemptStarted = true;
 		}
 		
 		if (mostrarProgreso && contexto != null) {
@@ -96,7 +108,9 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		super.onCancelled();
 		
 		// Finalizamos intento de conexión
-		ConnectivityAndInternetAccess.endConnectionAttempt();
+		if (connectionAttemptStarted) {
+			ConnectivityAndInternetAccess.endConnectionAttempt();
+		}
 		
 		if (pd!=null) pd.dismiss();
 	}
@@ -183,7 +197,10 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		super.onPostExecute(result);
 		
 		// Finalizamos intento de conexión
-		ConnectivityAndInternetAccess.endConnectionAttempt();
+		if (connectionAttemptStarted) {
+			ConnectivityAndInternetAccess.endConnectionAttempt();
+			connectionAttemptStarted = false;
+		}
 		
 		if (pd!=null) pd.dismiss();
 		if (result == null && errorCallback != null) {
