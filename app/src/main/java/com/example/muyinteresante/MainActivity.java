@@ -2,6 +2,7 @@ package com.example.muyinteresante;
 
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.view.OnApplyWindowInsetsListener;
 import android.support.v4.view.ViewCompat;
@@ -207,22 +208,27 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
     }
 
     private void actualizarInterfazEstadoRed(ConnectivityAndInternetAccess.NetworkState state) {
-        // Comprobaciones avanzadas de red usando los métodos relevantes de ConnectivityAndInternetAccess
-        boolean isConnectedOrConnecting = ConnectivityAndInternetAccess.isConnectedOrConnecting(this);
-        boolean isConnected = ConnectivityAndInternetAccess.isConnected(this);
+        // El observador entrega un único snapshot coherente. No mezclarlo con
+        // señales transitorias (como intentos pendientes) para pintar la cabecera.
+        boolean isConnected = state != null
+                ? state.isConnected()
+                : ConnectivityAndInternetAccess.isConnected(this);
         boolean isWifi = ConnectivityAndInternetAccess.isConnectedWifi(this);
         boolean isMobile = ConnectivityAndInternetAccess.isConnectedMobile(this);
         boolean isVpn = ConnectivityAndInternetAccess.vpnActive(this);
         boolean isAirplane = ConnectivityAndInternetAccess.isAirplaneModeOn(this);
         boolean isFast = ConnectivityAndInternetAccess.isConnectedFast(this);
-        boolean isCaptive = ConnectivityAndInternetAccess.isCaptivePortalDetected(this);
-        boolean isValidated = ConnectivityAndInternetAccess.isInternetValidated(this);
+        boolean isCaptive = state != null
+                ? state.isCaptivePortalDetected()
+                : ConnectivityAndInternetAccess.isCaptivePortalDetected(this);
+        boolean isValidated = state != null && state.isInternetValidated();
+        boolean validationSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
 
-        Log.d(TAG, "Chequeo de red: ConnectedOrConnecting=" + isConnectedOrConnecting +
-                ", Connected=" + isConnected + ", Wifi=" + isWifi + ", Mobile=" + isMobile +
+        Log.d(TAG, "Chequeo de red: Connected=" + isConnected +
+                ", Wifi=" + isWifi + ", Mobile=" + isMobile +
                 ", VPN=" + isVpn + ", Airplane=" + isAirplane + ", Fast=" + isFast);
 
-        if (!isConnectedOrConnecting && !isConnected) {
+        if (!isConnected) {
             // Disconnected / Offline
             viewNetworkDot.setBackgroundResource(R.color.status_offline);
             tvNetworkStatusText.setText(isAirplane ? "Modo Avión" : "Sin red");
@@ -242,7 +248,7 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
             bannerNetworkNotice.setVisibility(View.VISIBLE);
             bannerNetworkNotice.setBackgroundResource(R.color.status_warning_bg);
             tvBannerText.setText("Se requiere inicio de sesión en red (Portal Cautivo detectado).");
-        } else if (!isValidated && !isConnected) {
+        } else if (validationSupported && !isValidated) {
             // Connected without validated internet
             viewNetworkDot.setBackgroundResource(R.color.status_warning);
             tvNetworkStatusText.setText("Conectando...");
@@ -291,7 +297,6 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         }
         if (!RemoteOperationPolicy.canStartRemoteRequest(
                 ConnectivityAndInternetAccess.isConnected(this))) {
-            Toast.makeText(this, "Sin conexión disponible para iniciar la descarga.", Toast.LENGTH_SHORT).show();
             usarNoticiasOffline();
             return;
         }
@@ -339,7 +344,6 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
             prepararPaginacion(cached);
             layoutEmptyState.setVisibility(View.GONE);
             rvNoticias.setVisibility(View.VISIBLE);
-            Toast.makeText(this, "Mostrando noticias guardadas en modo offline", Toast.LENGTH_SHORT).show();
         } else {
             rvNoticias.setVisibility(View.GONE);
             layoutEmptyState.setVisibility(View.VISIBLE);
@@ -366,7 +370,8 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         } else {
             if (lastRssFailure == DescargaNoticiasRSS.FailureType.HTTP_ERROR) {
                 Toast.makeText(this, "El feed de noticias no está disponible ahora.", Toast.LENGTH_SHORT).show();
-            } else if (lastRssFailure != DescargaNoticiasRSS.FailureType.AMBIGUOUS_CONNECTIVITY) {
+            } else if (lastRssFailure != DescargaNoticiasRSS.FailureType.AMBIGUOUS_CONNECTIVITY
+                    && lastRssFailure != DescargaNoticiasRSS.FailureType.NO_NETWORK) {
                 Toast.makeText(this, "No se pudieron obtener nuevas noticias del canal RSS", Toast.LENGTH_SHORT).show();
             }
             usarNoticiasOffline();

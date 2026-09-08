@@ -10,7 +10,7 @@ This is not an official infoLibre application.
 
 Connectivity implementation source: https://gist.github.com/rodrigosambadesaa/729cca29a031fef4e2f15751863b655f
 
-Current release: 1.1.7
+Current release: 1.1.8
 
 Network policy: use Android's passive `NetworkCapabilities` state as a cheap guard, let
 the real RSS/article request be authoritative, and run the Gist's active diagnostic only
@@ -26,3 +26,5 @@ The header title uses high-contrast white text with a medium weight and subtle
 shadow for clearer separation from the blue background.
 The RSS downloader also checks connectivity before creating its progress dialog,
 so offline startup does not show a false download state.
+The network header now uses the observer's single coherent state, and offline
+startup avoids duplicate Toast notifications.
