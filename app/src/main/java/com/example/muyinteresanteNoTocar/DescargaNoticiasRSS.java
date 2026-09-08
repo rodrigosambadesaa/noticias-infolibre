@@ -75,7 +75,8 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 			// Así una operación iniciada durante una pérdida de red no muestra una
 			// descarga que nunca llegará a ejecutarse.
 			if (!RemoteOperationPolicy.canStartRemoteRequest(
-					ConnectivityAndInternetAccess.isConnected(contexto))) {
+					ConnectivityAndInternetAccess.isConnected(contexto),
+					ConnectivityAndInternetAccess.hasPhysicalNetwork(contexto))) {
 				failureType = FailureType.NO_NETWORK;
 				Log.w("DescargaNoticiasRSS", "Descarga omitida antes del progreso: no hay red utilizable.");
 				return;
@@ -123,7 +124,8 @@ public class DescargaNoticiasRSS extends AsyncTask<String,Integer,ArrayList<Noti
 		
 		try{
 			if (contexto != null && !RemoteOperationPolicy.canStartRemoteRequest(
-					ConnectivityAndInternetAccess.isConnected(contexto))) {
+					ConnectivityAndInternetAccess.isConnected(contexto),
+					ConnectivityAndInternetAccess.hasPhysicalNetwork(contexto))) {
 				failureType = FailureType.NO_NETWORK;
 				Log.w("DescargaNoticiasRSS", "Descarga omitida: no hay una red utilizable.");
 				return null;

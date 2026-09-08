@@ -121,7 +121,8 @@ public class DetalleActivity extends AppCompatActivity {
     }
 
     private void cargarArticuloSiHayRed() {
-        if (!ConnectivityAndInternetAccess.isConnected(this)) {
+        if (!ConnectivityAndInternetAccess.isConnected(this)
+                || !ConnectivityAndInternetAccess.hasPhysicalNetwork(this)) {
             progressBar.setVisibility(View.GONE);
             Toast.makeText(this, "Sin conexión. No se puede cargar el artículo.", Toast.LENGTH_SHORT).show();
             return;

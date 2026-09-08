@@ -211,8 +211,9 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         // El observador entrega un único snapshot coherente. No mezclarlo con
         // señales transitorias (como intentos pendientes) para pintar la cabecera.
         boolean transportConnected = state != null
-                ? state.isConnected()
-                : ConnectivityAndInternetAccess.isConnected(this);
+                ? state.isConnected() && ConnectivityAndInternetAccess.hasPhysicalNetwork(this)
+                : ConnectivityAndInternetAccess.isConnected(this)
+                        && ConnectivityAndInternetAccess.hasPhysicalNetwork(this);
         boolean isWifi = ConnectivityAndInternetAccess.isConnectedWifi(this);
         boolean isMobile = ConnectivityAndInternetAccess.isConnectedMobile(this);
         boolean isVpn = ConnectivityAndInternetAccess.vpnActive(this);
@@ -386,7 +387,9 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         // Una VPN como AdGuard puede transportar Internet correctamente sin
         // aparecer como VALIDATED en NetworkCapabilities. isConnected() es el
         // guard barato; la petición RSS real sigue siendo la prueba definitiva.
-        return ConnectivityAndInternetAccess.isConnected(this);
+        return RemoteOperationPolicy.canStartRemoteRequest(
+                ConnectivityAndInternetAccess.isConnected(this),
+                ConnectivityAndInternetAccess.hasPhysicalNetwork(this));
     }
 
     private void clasificarFalloRssConDiagnostico() {
@@ -433,7 +436,8 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
                     boolean reachable = result != null && result.isReachable();
                     String reachedHost = result != null ? result.getReachedHost() : "Ninguno";
                     long time = result != null ? result.getElapsedMilliseconds() : 0;
-                    boolean transportConnected = ConnectivityAndInternetAccess.isConnected(MainActivity.this);
+                    boolean transportConnected = ConnectivityAndInternetAccess.isConnected(MainActivity.this)
+                            && ConnectivityAndInternetAccess.hasPhysicalNetwork(MainActivity.this);
                     boolean isVpn = ConnectivityAndInternetAccess.vpnActive(MainActivity.this);
                     boolean isWifi = ConnectivityAndInternetAccess.isConnectedWifi(MainActivity.this);
                     boolean isMobile = ConnectivityAndInternetAccess.isConnectedMobile(MainActivity.this);

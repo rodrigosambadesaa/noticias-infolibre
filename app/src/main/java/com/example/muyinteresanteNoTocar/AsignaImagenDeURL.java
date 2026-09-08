@@ -42,6 +42,10 @@ public class AsignaImagenDeURL extends AsyncTask<String,Void,Void> {
 		mapaDeBits = null;
 		f = null;
 		if (contexto != null) {
+			if (!ConnectivityAndInternetAccess.isConnected(contexto)
+					|| !ConnectivityAndInternetAccess.hasPhysicalNetwork(contexto)) {
+				return;
+			}
 			ConnectivityAndInternetAccess.beginConnectionAttempt(contexto);
 		}
 	}
@@ -62,7 +66,8 @@ public class AsignaImagenDeURL extends AsyncTask<String,Void,Void> {
 					if (mapaDeBits != null) return null;
 				}
 
-				if (contexto != null && !ConnectivityAndInternetAccess.isConnected(contexto)) {
+				if (contexto != null && (!ConnectivityAndInternetAccess.isConnected(contexto)
+						|| !ConnectivityAndInternetAccess.hasPhysicalNetwork(contexto))) {
 					return null;
 				}
 

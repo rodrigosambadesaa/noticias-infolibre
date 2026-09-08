@@ -10,7 +10,7 @@ This is not an official infoLibre application.
 
 Connectivity implementation source: https://gist.github.com/rodrigosambadesaa/729cca29a031fef4e2f15751863b655f
 
-Current release: 1.1.10
+Current release: 1.1.11
 
 Network policy: use Android's passive `NetworkCapabilities` state as a cheap guard, let
 the real RSS/article request be authoritative, and run the Gist's active diagnostic only
@@ -30,5 +30,7 @@ The network header now uses the observer's single coherent state, and offline
 startup avoids duplicate Toast notifications.
 Network availability is now separated from validated Internet access for the
 header, diagnostics and remote-request guard.
-VPN networks such as AdGuard are allowed when exposed as usable by Android;
+VPN networks such as AdGuard are shown separately, but a VPN-only/dangling VPN
+without usable Wi-Fi, cellular or Ethernet is treated as offline by the cheap
+`isConnected()` + `hasPhysicalNetwork()` guard. With a physical network present,
 the active RSS/Internet probe remains authoritative for the final result.

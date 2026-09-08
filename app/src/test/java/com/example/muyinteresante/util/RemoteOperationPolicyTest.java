@@ -17,6 +17,16 @@ public class RemoteOperationPolicyTest {
     }
 
     @Test
+    public void vpnOnlyNetworkIsRejectedByPhysicalGuard() {
+        assertFalse(RemoteOperationPolicy.canStartRemoteRequest(true, false));
+    }
+
+    @Test
+    public void connectedPhysicalNetworkIsAllowed() {
+        assertTrue(RemoteOperationPolicy.canStartRemoteRequest(true, true));
+    }
+
+    @Test
     public void successfulServerResponseDoesNotTriggerGeneralDiagnostic() {
         assertFalse(RemoteOperationPolicy.shouldDiagnoseAfterFailure(true, true));
     }

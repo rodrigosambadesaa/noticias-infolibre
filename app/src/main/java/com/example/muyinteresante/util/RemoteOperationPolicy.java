@@ -8,6 +8,10 @@ public final class RemoteOperationPolicy {
         return connected;
     }
 
+    public static boolean canStartRemoteRequest(boolean connected, boolean hasPhysicalNetwork) {
+        return connected && hasPhysicalNetwork;
+    }
+
     public static boolean shouldDiagnoseAfterFailure(boolean serverResponded,
                                                        boolean ambiguousConnectivityFailure) {
         return !serverResponded && ambiguousConnectivityFailure;
