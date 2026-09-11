@@ -4,13 +4,15 @@ Independent Android RSS reader for infoLibre.
 - Search, refresh, sharing and article view
 - Offline JSON/image cache
 - Full connectivity diagnostics and passive NetworkObserver
-- Complete ConnectivityAndInternetAccess gist vendored in third_party/connectivity
+- Latest Java ConnectivityAndInternetAccess gist implementation integrated in the app source
 - Android API 16+ / Java 8
 This is not an official infoLibre application.
 
 Connectivity implementation source: https://gist.github.com/rodrigosambadesaa/729cca29a031fef4e2f15751863b655f
 
-Current release: 1.1.11
+Current release: 1.1.12
+
+Connectivity source revision: `3b0497e976765653a7467e3bd7d6bff28b96bd7c`.
 
 Network policy: use Android's passive `NetworkCapabilities` state as a cheap guard, let
 the real RSS/article request be authoritative, and run the Gist's active diagnostic only

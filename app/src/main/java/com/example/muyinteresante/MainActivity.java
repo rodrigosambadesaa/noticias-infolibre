@@ -58,6 +58,8 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
 
     private ConnectivityAndInternetAccess.NetworkObserver networkObserver;
     private ConnectivityAndInternetAccess.NetworkState currentNetworkState;
+    private boolean hasObservedNetworkState;
+    private String lastConnectivityToast;
 
     private boolean isLoadingMore = false;
     private boolean hasMoreNews = false;
@@ -192,7 +194,19 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         networkObserver = ConnectivityAndInternetAccess.observeNetwork(this, new ConnectivityAndInternetAccess.NetworkStateCallback() {
             @Override
             public void onStateChanged(ConnectivityAndInternetAccess.NetworkState state) {
+                boolean wasConnected = currentNetworkState != null && currentNetworkState.isConnected();
+                boolean wasCaptive = currentNetworkState != null && currentNetworkState.isCaptivePortalDetected();
                 currentNetworkState = state;
+                if (hasObservedNetworkState) {
+                    if (state != null && state.isCaptivePortalDetected() && !wasCaptive) {
+                        mostrarToastConectividad(getString(R.string.network_captive_portal));
+                    } else if (state != null && !state.isConnected() && wasConnected) {
+                        mostrarToastConectividad(getString(R.string.network_no_connection));
+                    } else if (state != null && state.isConnected() && !wasConnected) {
+                        mostrarToastConectividad(getString(R.string.network_recovered));
+                    }
+                }
+                hasObservedNetworkState = true;
                 actualizarInterfazEstadoRed(state);
             }
         });
@@ -302,6 +316,7 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
         }
         if (!RemoteOperationPolicy.canStartRemoteRequest(
                 hayInternetUtilizable())) {
+            mostrarToastConectividad(getString(R.string.network_no_connection));
             usarNoticiasOffline();
             return;
         }
@@ -400,16 +415,20 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
             public void onResult(ConnectivityAndInternetAccess.InternetResult result) {
                 boolean generalInternet = result != null && result.isReachable();
                 if (generalInternet) {
-                    Toast.makeText(MainActivity.this,
-                            "El feed de noticias no está disponible, pero Internet funciona.",
-                            Toast.LENGTH_LONG).show();
+                    mostrarToastConectividad(getString(R.string.network_backend_unavailable));
                 } else {
-                    Toast.makeText(MainActivity.this,
-                            "Problema de conectividad: no se pudo demostrar acceso general a Internet.",
-                            Toast.LENGTH_LONG).show();
+                    mostrarToastConectividad(getString(R.string.network_internet_unavailable));
                 }
             }
         });
+    }
+
+    private void mostrarToastConectividad(String message) {
+        if (message == null || message.equals(lastConnectivityToast)) {
+            return;
+        }
+        lastConnectivityToast = message;
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
     private void prepararPaginacion(ArrayList<NoticiaRSS> noticias) {

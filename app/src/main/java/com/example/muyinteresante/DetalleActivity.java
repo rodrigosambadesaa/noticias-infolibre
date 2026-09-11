@@ -4,6 +4,7 @@ import android.content.Intent;
 import com.example.muyinteresante.util.ConnectivityAndInternetAccess;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.view.OnApplyWindowInsetsListener;
 import android.support.v4.view.ViewCompat;
@@ -109,6 +110,27 @@ public class DetalleActivity extends AppCompatActivity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP
+                        || request == null || request.isForMainFrame()) {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(DetalleActivity.this,
+                            getString(R.string.network_internet_unavailable), Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request,
+                                            android.webkit.WebResourceResponse errorResponse) {
+                super.onReceivedHttpError(view, request, errorResponse);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+                        && request != null && request.isForMainFrame()) {
+                    progressBar.setVisibility(View.GONE);
+                    int status = errorResponse != null ? errorResponse.getStatusCode() : 0;
+                    String message = status >= 500
+                            ? getString(R.string.network_backend_unavailable)
+                            : "No se pudo cargar el artículo (HTTP " + status + ").";
+                    Toast.makeText(DetalleActivity.this, message, Toast.LENGTH_LONG).show();
+                }
             }
         });
 

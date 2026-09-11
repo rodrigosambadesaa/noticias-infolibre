@@ -61,6 +61,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 @SuppressWarnings("deprecation")
+@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public final class ConnectivityAndInternetAccess {
 
     public interface DnsProbeStrategy {
@@ -282,7 +283,8 @@ public final class ConnectivityAndInternetAccess {
                             Network network,
                             NetworkCapabilities capabilities) {
                         currentDefaultNetwork = network;
-                        publish(networkStateFromCapabilities(capabilities));
+                        publish(networkStateFromCapabilities(
+                                connectivityManager, capabilities));
                     }
 
                     @Override
@@ -664,7 +666,9 @@ public final class ConnectivityAndInternetAccess {
         if (network == null) {
             return false;
         }
-        return isUsable(manager(context).getNetworkCapabilities(network));
+        ConnectivityManager connectivityManager = manager(context);
+        return isEffectivelyUsable(connectivityManager,
+                connectivityManager.getNetworkCapabilities(network));
     }
 
     public static boolean isConnecting(Context context) {
@@ -793,7 +797,8 @@ public final class ConnectivityAndInternetAccess {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Network active = connectivityManager.getActiveNetwork();
             if (active != null
-                    && isUsable(connectivityManager.getNetworkCapabilities(active))) {
+                    && isEffectivelyUsable(connectivityManager,
+                            connectivityManager.getNetworkCapabilities(active))) {
                 clearConnectionAttempts();
                 return true;
             }
@@ -802,7 +807,8 @@ public final class ConnectivityAndInternetAccess {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             for (Network network : connectivityManager.getAllNetworks()) {
-                if (isUsable(connectivityManager.getNetworkCapabilities(network))) {
+                if (isEffectivelyUsable(connectivityManager,
+                        connectivityManager.getNetworkCapabilities(network))) {
                     clearConnectionAttempts();
                     return true;
                 }
@@ -817,23 +823,15 @@ public final class ConnectivityAndInternetAccess {
         return connected;
     }
 
-    /** Returns true only when a usable Wi-Fi, cellular, or Ethernet transport exists. */
-    public static boolean hasPhysicalNetwork(Context context) {
+    /** Returns whether a usable non-VPN network exists beneath the active path. */
+    public static boolean hasUnderlyingNetwork(Context context) {
         requireContext(context);
-        ConnectivityManager connectivityManager = manager(context);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            for (Network network : connectivityManager.getAllNetworks()) {
-                NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
-                if (isUsable(capabilities)
-                        && (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-                        || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-                        || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        return isConnectedLegacy(connectivityManager.getActiveNetworkInfo());
+        return hasUsableNonVpnNetwork(manager(context));
+    }
+
+    /** Compatibility alias for {@link #hasUnderlyingNetwork(Context)}. */
+    public static boolean hasPhysicalNetwork(Context context) {
+        return hasUnderlyingNetwork(context);
     }
 
     /** Returns a cheap point-in-time snapshot of the application's default network. */
@@ -847,6 +845,7 @@ public final class ConnectivityAndInternetAccess {
                 return disconnectedNetworkState();
             }
             return networkStateFromCapabilities(
+                    connectivityManager,
                     connectivityManager.getNetworkCapabilities(active));
         }
 
@@ -898,8 +897,7 @@ public final class ConnectivityAndInternetAccess {
 
         NetworkCapabilities capabilities =
                 manager(context).getNetworkCapabilities(network);
-        return capabilities != null
-                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return isEffectivelyUsable(manager(context), capabilities)
                 && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 
@@ -1953,8 +1951,9 @@ public final class ConnectivityAndInternetAccess {
     }
 
     private static NetworkState networkStateFromCapabilities(
+            ConnectivityManager connectivityManager,
             NetworkCapabilities capabilities) {
-        boolean connected = isUsable(capabilities);
+        boolean connected = isEffectivelyUsable(connectivityManager, capabilities);
         boolean validated = connected
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                 && capabilities.hasCapability(
@@ -1983,7 +1982,8 @@ public final class ConnectivityAndInternetAccess {
         return connectivityManager;
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    // Low-level capability check only. Call isEffectivelyUsable() when the
+    // result must represent application connectivity, including VPN handling.
     private static boolean isUsable(NetworkCapabilities capabilities) {
         if (capabilities == null
                 || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
@@ -1993,6 +1993,38 @@ public final class ConnectivityAndInternetAccess {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.P
                 || capabilities.hasCapability(
                         NetworkCapabilities.NET_CAPABILITY_NOT_SUSPENDED);
+    }
+
+    private static boolean isEffectivelyUsable(
+            ConnectivityManager connectivityManager,
+            NetworkCapabilities capabilities) {
+        if (!isUsable(capabilities)) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP
+                || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+            return true;
+        }
+        // A VPN may retain INTERNET after its real underlying path disappeared.
+        return hasUsableNonVpnNetwork(connectivityManager);
+    }
+
+    private static boolean hasUsableNonVpnNetwork(
+            ConnectivityManager connectivityManager) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            return isConnectedLegacy(connectivityManager.getActiveNetworkInfo());
+        }
+        for (Network network : connectivityManager.getAllNetworks()) {
+            NetworkCapabilities capabilities =
+                    connectivityManager.getNetworkCapabilities(network);
+            if (isUsable(capabilities)
+                    && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    ? capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                    : !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasTransport(Context context, int transport) {
@@ -2051,7 +2083,6 @@ public final class ConnectivityAndInternetAccess {
         return false;
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private static boolean isFast(NetworkCapabilities capabilities) {
         return isUsable(capabilities)
                 && capabilities.getLinkDownstreamBandwidthKbps() >= MINIMUM_FAST_KBPS
@@ -2102,14 +2133,16 @@ public final class ConnectivityAndInternetAccess {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Network active = connectivityManager.getActiveNetwork();
             if (active != null
-                    && isUsable(connectivityManager.getNetworkCapabilities(active))) {
+                    && isEffectivelyUsable(connectivityManager,
+                            connectivityManager.getNetworkCapabilities(active))) {
                 return active;
             }
             return null;
         }
 
         for (Network network : connectivityManager.getAllNetworks()) {
-            if (isUsable(connectivityManager.getNetworkCapabilities(network))) {
+            if (isEffectivelyUsable(connectivityManager,
+                    connectivityManager.getNetworkCapabilities(network))) {
                 return network;
             }
         }
@@ -2398,6 +2431,16 @@ public final class ConnectivityAndInternetAccess {
         });
     }
 
+    /** AtomicInteger.updateAndGet is API 24; keep the minSdk 16 implementation lock-free. */
+    private static void decrementConnectionAttempts() {
+        while (true) {
+            int current = CONNECTION_ATTEMPTS.get();
+            if (current <= 0 || CONNECTION_ATTEMPTS.compareAndSet(current, current - 1)) {
+                return;
+            }
+        }
+    }
+
     private static boolean timeoutConnectionAttempt(ConnectionAttempt attempt) {
         synchronized (CONNECTION_ATTEMPT_LOCK) {
             if (attempt.closed) {
@@ -2410,16 +2453,6 @@ public final class ConnectivityAndInternetAccess {
             CONNECTION_ATTEMPT_STALLED.set(true);
             return true;
         }
-    }
-
-    private static void decrementConnectionAttempts() {
-        int current;
-        do {
-            current = CONNECTION_ATTEMPTS.get();
-            if (current <= 0) {
-                return;
-            }
-        } while (!CONNECTION_ATTEMPTS.compareAndSet(current, current - 1));
     }
 
     private static void expireTimedOutConnectionAttempts() {
