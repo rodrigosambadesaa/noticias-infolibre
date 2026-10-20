@@ -13,7 +13,6 @@
 
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
             android:label="@string/app_name">
             <intent-filter>
@@ -25,7 +24,7 @@
         <activity
             android:name=".DetalleActivity"
             android:exported="false"
-            android:label="Detalle de Noticia"
+            android:label="@string/detail_label"
             android:parentActivityName=".MainActivity" />
 
     </application>
