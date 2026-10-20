@@ -415,7 +415,7 @@ public class MainActivity extends AppCompatActivity implements iNoticiaRSS {
     private void clasificarFalloRssConDiagnostico() {
         ConnectivityAndInternetAccess connectivity =
                 new ConnectivityAndInternetAccess.Builder().build();
-        connectivity.checkInternetAsync(this, new ConnectivityAndInternetAccess.InternetCallback() {
+        ConnectivityAndInternetAccess.checkHttpOnlyAsyncDefault(this, new ConnectivityAndInternetAccess.InternetCallback() {
             @Override
             public void onResult(ConnectivityAndInternetAccess.InternetResult result) {
                 boolean generalInternet = result != null && result.isReachable();
